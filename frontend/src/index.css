@@ -1,0 +1,295 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+/* ========== THEMESBERG NEUMORPHISM-UI OFFICIAL SPEC CSS ========== */
+
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #e6e8ec;
+    color: #44474a;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Space Grotesk', sans-serif;
+    color: #313435;
+    font-weight: 700;
+  }
+}
+
+/* Base utility colors */
+.bg-primary {
+  background-color: #e6e8ec !important;
+}
+
+.text-dark {
+  color: #313435 !important;
+}
+
+.text-gray {
+  color: #7e8299 !important;
+}
+
+/* Neumorphic Shadows */
+.shadow-soft {
+  box-shadow: 3px 3px 6px #b8b9be, -3px -3px 6px #ffffff !important;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  transition: all 0.2s ease-in-out;
+}
+
+.shadow-soft-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 6px 6px 12px #b8b9be, -6px -6px 12px #ffffff !important;
+}
+
+.shadow-inset {
+  box-shadow: inset 2px 2px 5px #b8b9be, inset -3px -3px 7px #ffffff !important;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.border-light {
+  border-color: rgba(255, 255, 255, 0.5) !important;
+}
+
+/* Neumorphic Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 24px;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  border: 1px solid transparent;
+  outline: none;
+}
+
+.btn-primary {
+  background-color: #e6e8ec;
+  color: #44474a;
+  border-color: rgba(255, 255, 255, 0.6);
+  box-shadow: 3px 3px 6px #b8b9be, -3px -3px 6px #ffffff;
+}
+
+.btn-primary:hover, .btn-primary:focus {
+  color: #313435;
+  box-shadow: 1px 1px 3px #b8b9be, -1px -1px 3px #ffffff;
+  transform: translateY(-0.5px);
+}
+
+.btn-primary:active {
+  box-shadow: inset 2px 2px 5px #b8b9be, inset -3px -3px 7px #ffffff;
+  transform: translateY(0.5px);
+}
+
+/* Secondary Button - Dark Slate/Charcoal */
+.btn-secondary {
+  background-color: #313435;
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 3px 3px 6px #b8b9be, -3px -3px 6px #ffffff;
+}
+
+.btn-secondary:hover {
+  background-color: #44474a;
+  color: #ffffff;
+  box-shadow: 1px 1px 3px #b8b9be, -1px -1px 3px #ffffff;
+  transform: translateY(-0.5px);
+}
+
+.btn-secondary:active {
+  background-color: #232526;
+  box-shadow: inset 2px 2px 4px rgba(0, 0, 0, 0.4);
+  transform: translateY(0.5px);
+}
+
+/* Pill Button variant */
+.btn-pill {
+  border-radius: 9999px !important;
+}
+
+/* Icon Button variant */
+.btn-icon-only {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+@media (min-width: 640px) {
+  .btn-icon-only {
+    width: 42px;
+    height: 42px;
+  }
+}
+
+/* Form Control Input fields */
+.form-control {
+  width: 100%;
+  padding: 12px 18px;
+  background-color: #e6e8ec;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  color: #313435;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  outline: none;
+  transition: all 0.2s ease;
+  box-shadow: inset 2px 2px 5px #b8b9be, inset -3px -3px 7px #ffffff;
+}
+
+.form-control:focus {
+  border-color: rgba(49, 52, 53, 0.2);
+  box-shadow: inset 1px 1px 3px #b8b9be, inset -1px -1px 3px #ffffff;
+}
+
+/* Badge specifications */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  border-radius: 6px;
+  background-color: #e6e8ec;
+  box-shadow: inset 1px 1px 3px #b8b9be, inset -1px -1px 3px #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: #44474a;
+}
+
+.badge-dark {
+  background-color: #313435;
+  color: #ffffff;
+  box-shadow: 2px 2px 4px #b8b9be, -2px -2px 4px #ffffff;
+}
+
+/* Layout headers */
+.section-header {
+  background-color: #e6e8ec;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.container-main {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* Animations */
+.animate-up-2 {
+  transition: transform 0.2s ease;
+}
+.animate-up-2:hover {
+  transform: translateY(-4px);
+}
+
+.animate-down-2 {
+  transition: transform 0.2s ease;
+}
+.animate-down-2:hover {
+  transform: translateY(4px);
+}
+
+.animate-right-3 {
+  transition: transform 0.2s ease;
+}
+.animate-right-3:hover {
+  transform: translateX(6px);
+}
+
+.animate-left-3 {
+  transition: transform 0.2s ease;
+}
+.animate-left-3:hover {
+  transform: translateX(-6px);
+}
+
+/* Skeletons */
+.nm-skeleton {
+  background: linear-gradient(90deg, #e6e8ec 25%, #eeeeee 50%, #e6e8ec 75%);
+  background-size: 200% 100%;
+  animation: nm-shimmer 1.5s infinite;
+  box-shadow: inset 2px 2px 5px #b8b9be, inset -2px -2px 5px #ffffff;
+  border-radius: 12px;
+}
+
+@keyframes nm-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Fade-in animation */
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Scrollbar hiding for horizontal scroll areas */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Smooth page transitions */
+main {
+  animation: pageIn 0.4s ease-out;
+}
+
+@keyframes pageIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Image loading transitions */
+img {
+  transition: opacity 0.3s ease;
+}
+
+/* Focus-visible outlines for accessibility */
+:focus-visible {
+  outline: 2px solid #44474a;
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* Micro-animations */
+.animate-bounce-short {
+  animation: bounceShort 0.4s ease-out;
+}
+
+@keyframes bounceShort {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.35); }
+}
