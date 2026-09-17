@@ -2,17 +2,17 @@ FROM node:20-alpine
 
 WORKDIR /usr/src/app
 
-# Copy package definition files
+# Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm install
+# Install exact dependencies
+RUN npm ci --omit=dev
 
-# Copy application source code
+# Copy application source
 COPY . .
 
-# Expose backend service port
+# Backend port
 EXPOSE 5000
 
-# Start backend application
+# Start backend
 CMD ["npm", "start"]
