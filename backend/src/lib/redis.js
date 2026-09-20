@@ -85,12 +85,20 @@ export const cache = {
   },
 
   // Clear cache matching a pattern (e.g. products:*)
+  // Uses SCAN instead of KEYS to avoid O(N) blocking on large datasets
   async clearPattern(pattern) {
     if (!isConnected || !redisClient) return false
     try {
-      const keys = await redisClient.keys(pattern)
-      if (keys.length > 0) {
-        await redisClient.del(keys)
+      let cursor = 0
+      const keysToDelete = []
+      do {
+        const reply = await redisClient.scan(cursor, { MATCH: pattern, COUNT: 100 })
+        cursor = reply.cursor
+        keysToDelete.push(...reply.keys)
+      } while (cursor !== 0)
+
+      if (keysToDelete.length > 0) {
+        await redisClient.del(keysToDelete)
       }
       return true
     } catch (err) {

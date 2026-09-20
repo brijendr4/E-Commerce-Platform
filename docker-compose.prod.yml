@@ -12,11 +12,19 @@ services:
       MONGODB_URI: ${MONGODB_URI}
       REDIS_URL: ${REDIS_URL}
       JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
       NODE_ENV: production
       FRONTEND_URL: ${FRONTEND_URL}
 
     expose:
       - "5000"
+
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
 
     restart: unless-stopped
 
@@ -29,8 +37,10 @@ services:
 
     ports:
       - "80:80"
+      - "443:443"
 
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
     restart: unless-stopped

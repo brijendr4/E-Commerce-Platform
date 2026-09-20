@@ -2,24 +2,26 @@ import React, { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { FaArrowRight, FaGoogle, FaFacebook, FaTimes } from 'react-icons/fa'
+import { FaArrowRight, FaGoogle, FaFacebook, FaTimes, FaEye, FaEyeSlash } from 'react-icons/fa'
 
-// Mock social profiles — same pool as Login
-const MOCK_GOOGLE_USERS = [
+// Mock social profiles — DEV ONLY (never shown in production builds)
+const MOCK_GOOGLE_USERS = import.meta.env.DEV ? [
   { name: 'Arjun Mehta', email: 'arjun.mehta@gmail.com', socialId: 'g_001', profilePic: 'https://api.dicebear.com/7.x/avataaars/svg?seed=arjun' },
   { name: 'Priya Sharma', email: 'priya.sharma@gmail.com', socialId: 'g_002', profilePic: 'https://api.dicebear.com/7.x/avataaars/svg?seed=priya' },
   { name: 'Rohan Gupta', email: 'rohan.gupta@gmail.com', socialId: 'g_003', profilePic: 'https://api.dicebear.com/7.x/avataaars/svg?seed=rohan' }
-]
-const MOCK_FB_USERS = [
+] : []
+const MOCK_FB_USERS = import.meta.env.DEV ? [
   { name: 'Sneha Patel', email: 'sneha.patel@facebook.com', socialId: 'fb_001', profilePic: 'https://api.dicebear.com/7.x/avataaars/svg?seed=sneha' },
   { name: 'Kabir Singh', email: 'kabir.singh@facebook.com', socialId: 'fb_002', profilePic: 'https://api.dicebear.com/7.x/avataaars/svg?seed=kabir' },
   { name: 'Anika Joshi', email: 'anika.joshi@facebook.com', socialId: 'fb_003', profilePic: 'https://api.dicebear.com/7.x/avataaars/svg?seed=anika' }
-]
+] : []
 
 export default function Signup() {
-  const [form, setForm] = useState({ name: '', email: '', password: '' })
+  const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '' })
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
 
   const { signup, socialLogin } = useAuth()
   const nav = useNavigate()
@@ -33,7 +35,9 @@ export default function Signup() {
   async function submit(e) {
     e.preventDefault()
     if (form.name.trim().length < 2) { setError('Name must be at least 2 characters.'); return }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) { setError('Please enter a valid email address.'); return }
     if (form.password.length < 6) { setError('Password must be at least 6 characters.'); return }
+    if (form.password !== form.confirmPassword) { setError('Passwords do not match.'); return }
 
     setLoading(true)
     setError(null)
@@ -82,16 +86,18 @@ export default function Signup() {
           </div>
         )}
 
-        {/* Social Buttons */}
+        {/* Social Buttons — dev mock or production placeholder */}
         <div className="grid grid-cols-2 gap-3 mb-6">
           <button
-            onClick={() => setSocialPopup('google')}
+            onClick={() => import.meta.env.DEV ? setSocialPopup('google') : toast('Google OAuth coming soon!', { icon: '🔜' })}
+            title={import.meta.env.DEV ? 'Demo: Select a Google account' : 'Real Google OAuth coming soon'}
             className="btn btn-primary py-3 text-xs font-black tracking-wider flex items-center justify-center gap-2 border border-white/50 hover:border-red-200 hover:text-red-600 transition-colors cursor-pointer"
           >
             <FaGoogle className="text-sm text-[#DB4437]" /> Google
           </button>
           <button
-            onClick={() => setSocialPopup('facebook')}
+            onClick={() => import.meta.env.DEV ? setSocialPopup('facebook') : toast('Facebook OAuth coming soon!', { icon: '🔜' })}
+            title={import.meta.env.DEV ? 'Demo: Select a Facebook account' : 'Real Facebook OAuth coming soon'}
             className="btn btn-primary py-3 text-xs font-black tracking-wider flex items-center justify-center gap-2 border border-white/50 hover:border-blue-200 hover:text-blue-600 transition-colors cursor-pointer"
           >
             <FaFacebook className="text-sm text-[#1877F2]" /> Facebook
@@ -105,6 +111,7 @@ export default function Signup() {
         </div>
 
         <form onSubmit={submit} className="space-y-4" noValidate>
+          {/* Full Name */}
           <div>
             <label htmlFor="signup-name" className="block text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2 ml-1">Full Name</label>
             <input
@@ -113,6 +120,8 @@ export default function Signup() {
               className="form-control" placeholder="John Doe" autoComplete="name" minLength={2}
             />
           </div>
+
+          {/* Email */}
           <div>
             <label htmlFor="signup-email" className="block text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2 ml-1">Email Address</label>
             <input
@@ -121,22 +130,60 @@ export default function Signup() {
               className="form-control" placeholder="name@example.com" autoComplete="email"
             />
           </div>
+
+          {/* Password */}
           <div>
             <label htmlFor="signup-password" className="block text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2 ml-1">
               Password <span className="text-zinc-300 font-normal normal-case">(min. 6 chars)</span>
             </label>
-            <input
-              id="signup-password" required type="password"
-              value={form.password} onChange={e => setForm({ ...form, password: e.target.value })}
-              className="form-control" placeholder="••••••••" autoComplete="new-password" minLength={6}
-            />
+            <div className="relative">
+              <input
+                id="signup-password" required type={showPassword ? 'text' : 'password'}
+                value={form.password} onChange={e => setForm({ ...form, password: e.target.value })}
+                className="form-control pr-10" placeholder="••••••••" autoComplete="new-password" minLength={6}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(v => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 transition-colors bg-transparent border-none cursor-pointer"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <FaEyeSlash className="text-xs" /> : <FaEye className="text-xs" />}
+              </button>
+            </div>
+          </div>
+
+          {/* Confirm Password */}
+          <div>
+            <label htmlFor="signup-confirm" className="block text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2 ml-1">
+              Confirm Password
+            </label>
+            <div className="relative">
+              <input
+                id="signup-confirm" required type={showConfirm ? 'text' : 'password'}
+                value={form.confirmPassword} onChange={e => setForm({ ...form, confirmPassword: e.target.value })}
+                className="form-control pr-10" placeholder="••••••••" autoComplete="new-password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirm(v => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 transition-colors bg-transparent border-none cursor-pointer"
+                aria-label={showConfirm ? 'Hide confirm password' : 'Show confirm password'}
+              >
+                {showConfirm ? <FaEyeSlash className="text-xs" /> : <FaEye className="text-xs" />}
+              </button>
+            </div>
+            {/* Real-time mismatch hint */}
+            {form.confirmPassword && form.password !== form.confirmPassword && (
+              <p className="text-[10px] text-red-500 font-semibold mt-1 ml-1">Passwords do not match.</p>
+            )}
           </div>
 
           <button
             type="submit" disabled={loading}
             className="btn btn-secondary w-full py-3.5 mt-2 justify-center text-xs tracking-wider rounded-full"
           >
-            {loading ? 'Creating Account...' : <>Create Account <FaArrowRight className="ml-1 text-[10px]" /></>}
+            {loading ? 'Creating Account...' : <> Create Account <FaArrowRight className="ml-1 text-[10px]" /></>}
           </button>
         </form>
 
@@ -148,8 +195,8 @@ export default function Signup() {
         </div>
       </div>
 
-      {/* ─── Social Signup Popup ─────────────────────────────────────── */}
-      {socialPopup && (
+      {/* ─── Social Signup Popup (DEV ONLY) ─────────────────────────────────── */}
+      {import.meta.env.DEV && socialPopup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/50 backdrop-blur-sm p-4">
           <div className="shadow-soft bg-primary border border-white/50 p-6 rounded-3xl w-full max-w-sm mx-auto">
             <div className="flex justify-between items-center mb-5">
@@ -189,7 +236,7 @@ export default function Signup() {
             </div>
 
             <p className="text-center text-[10px] text-zinc-400 mt-4 font-semibold">
-              Demo accounts for testing. Real OAuth integration available on production.
+              ⚠️ Dev-only demo accounts. Real OAuth integration available for production.
             </p>
           </div>
         </div>

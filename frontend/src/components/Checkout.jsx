@@ -41,13 +41,55 @@ export default function Checkout() {
   const [error, setError] = useState(null)
   const [order, setOrder] = useState(null)
 
+  // Inline validation errors
+  const [fieldErrors, setFieldErrors] = useState({})
+
+  // Validation helpers
+  function validatePhone(phone) {
+    // Allow: +, digits, spaces, dashes, parentheses. Min 7 digits.
+    const digits = phone.replace(/\D/g, '')
+    return digits.length >= 7 && /^[+\d\s()\-]+$/.test(phone)
+  }
+  function validateCardNumber(num) {
+    const digits = num.replace(/\s/g, '')
+    return /^\d{13,19}$/.test(digits)
+  }
+  function validateExpiry(expiry) {
+    return /^(0[1-9]|1[0-2])\/\d{2}$/.test(expiry)
+  }
+  function validateCvc(cvc) {
+    return /^\d{3,4}$/.test(cvc)
+  }
+
   async function submit(e) {
     e.preventDefault()
     if (!user) {
       setError('You must be logged in to place an order.')
       return
     }
-    
+
+    // ─── Validate shipping fields ─────────────────────────────────────────────
+    const errs = {}
+    if (!validatePhone(form.phone)) {
+      errs.phone = 'Enter a valid phone number (at least 7 digits).'
+    }
+    if (paymentMethod === 'card') {
+      if (!validateCardNumber(cardForm.cardNumber)) {
+        errs.cardNumber = 'Enter a valid card number (13–19 digits).'
+      }
+      if (!validateExpiry(cardForm.expiry)) {
+        errs.expiry = 'Enter a valid expiry in MM/YY format.'
+      }
+      if (!validateCvc(cardForm.cvc)) {
+        errs.cvc = 'Enter a valid CVC (3 or 4 digits).'
+      }
+    }
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs)
+      return
+    }
+    setFieldErrors({})
+
     setLoading(true)
     setError(null)
     
@@ -210,16 +252,17 @@ export default function Checkout() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="checkout-phone" className="block text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2 ml-1">Phone Number</label>
-                <input 
+                <input
                   id="checkout-phone"
                   required
                   type="tel"
-                  value={form.phone} 
-                  onChange={e => setForm({ ...form, phone: e.target.value })} 
-                  className="form-control" 
-                  placeholder="+1 (555) 000-0000"
+                  value={form.phone}
+                  onChange={e => { setForm({ ...form, phone: e.target.value }); setFieldErrors(fe => ({ ...fe, phone: '' })) }}
+                  className={`form-control ${fieldErrors.phone ? 'border-red-400' : ''}`}
+                  placeholder="+91 98765 43210"
                   autoComplete="tel"
                 />
+                {fieldErrors.phone && <p className="text-[10px] text-red-500 font-semibold mt-1 ml-1">{fieldErrors.phone}</p>}
               </div>
               <div>
                 <label htmlFor="checkout-city" className="block text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2 ml-1">City</label>
@@ -290,11 +333,20 @@ export default function Checkout() {
                     id="card-number"
                     required={paymentMethod === 'card'}
                     type="text"
+                    inputMode="numeric"
+                    maxLength={23}
                     value={cardForm.cardNumber}
-                    onChange={e => setCardForm({ ...cardForm, cardNumber: e.target.value })}
-                    className="form-control font-mono"
+                    onChange={e => {
+                      // Auto-format: insert space every 4 digits
+                      const raw = e.target.value.replace(/\D/g, '').slice(0, 19)
+                      const formatted = raw.match(/.{1,4}/g)?.join(' ') || raw
+                      setCardForm({ ...cardForm, cardNumber: formatted })
+                      setFieldErrors(fe => ({ ...fe, cardNumber: '' }))
+                    }}
+                    className={`form-control font-mono ${fieldErrors.cardNumber ? 'border-red-400' : ''}`}
                     placeholder="4000 1234 5678 9010"
                   />
+                  {fieldErrors.cardNumber && <p className="text-[10px] text-red-500 font-semibold mt-1 ml-1">{fieldErrors.cardNumber}</p>}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -304,12 +356,20 @@ export default function Checkout() {
                       id="card-expiry"
                       required={paymentMethod === 'card'}
                       type="text"
+                      inputMode="numeric"
                       maxLength={5}
                       value={cardForm.expiry}
-                      onChange={e => setCardForm({ ...cardForm, expiry: e.target.value })}
-                      className="form-control text-center font-mono"
+                      onChange={e => {
+                        // Auto-format: insert / after 2 digits
+                        let val = e.target.value.replace(/\D/g, '').slice(0, 4)
+                        if (val.length > 2) val = val.slice(0, 2) + '/' + val.slice(2)
+                        setCardForm({ ...cardForm, expiry: val })
+                        setFieldErrors(fe => ({ ...fe, expiry: '' }))
+                      }}
+                      className={`form-control text-center font-mono ${fieldErrors.expiry ? 'border-red-400' : ''}`}
                       placeholder="MM/YY"
                     />
+                    {fieldErrors.expiry && <p className="text-[10px] text-red-500 font-semibold mt-1 ml-1">{fieldErrors.expiry}</p>}
                   </div>
                   <div>
                     <label htmlFor="card-cvc" className="block text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2 ml-1">CVC Code</label>
@@ -317,12 +377,18 @@ export default function Checkout() {
                       id="card-cvc"
                       required={paymentMethod === 'card'}
                       type="text"
+                      inputMode="numeric"
                       maxLength={4}
                       value={cardForm.cvc}
-                      onChange={e => setCardForm({ ...cardForm, cvc: e.target.value })}
-                      className="form-control text-center font-mono"
+                      onChange={e => {
+                        const val = e.target.value.replace(/\D/g, '').slice(0, 4)
+                        setCardForm({ ...cardForm, cvc: val })
+                        setFieldErrors(fe => ({ ...fe, cvc: '' }))
+                      }}
+                      className={`form-control text-center font-mono ${fieldErrors.cvc ? 'border-red-400' : ''}`}
                       placeholder="123"
                     />
+                    {fieldErrors.cvc && <p className="text-[10px] text-red-500 font-semibold mt-1 ml-1">{fieldErrors.cvc}</p>}
                   </div>
                 </div>
 

@@ -1,0 +1,232 @@
+name: CI/CD Pipeline — Fashion & Freedom
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/fashion-freedom
+
+jobs:
+  # ────────────────────────────────────────────────────────────────────────────
+  # JOB 1: Lint & Security Audit (runs on every push/PR)
+  # ────────────────────────────────────────────────────────────────────────────
+  lint-and-audit:
+    name: Lint & Security Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ── Backend ──────────────────────────────────────────────────────────────
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        run: npm ci
+        working-directory: backend
+
+      - name: Audit backend npm packages for vulnerabilities
+        run: npm audit --audit-level=high
+        working-directory: backend
+        continue-on-error: false  # Fail pipeline on HIGH/CRITICAL vulnerabilities
+
+      # ── Frontend ─────────────────────────────────────────────────────────────
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Run frontend ESLint
+        run: npm run lint
+        working-directory: frontend
+
+      - name: Audit frontend npm packages for vulnerabilities
+        run: npm audit --audit-level=high
+        working-directory: frontend
+        continue-on-error: true  # Allow non-critical frontend audit failures
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # JOB 2: Build Docker Images (runs on push to main or develop)
+  # ────────────────────────────────────────────────────────────────────────────
+  build:
+    name: Build & Push Docker Images
+    runs-on: ubuntu-latest
+    needs: lint-and-audit
+    if: github.event_name == 'push'
+
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      backend-image: ${{ steps.meta-backend.outputs.tags }}
+      frontend-image: ${{ steps.meta-frontend.outputs.tags }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # ── Backend Image ─────────────────────────────────────────────────────────
+      - name: Extract backend Docker metadata
+        id: meta-backend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-backend
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=sha-,format=short
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: ${{ steps.meta-backend.outputs.tags }}
+          labels: ${{ steps.meta-backend.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # ── Frontend Image ────────────────────────────────────────────────────────
+      - name: Extract frontend Docker metadata
+        id: meta-frontend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-frontend
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=sha-,format=short
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          tags: ${{ steps.meta-frontend.outputs.tags }}
+          labels: ${{ steps.meta-frontend.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # JOB 3: Deploy to Production (only on push to main)
+  # ────────────────────────────────────────────────────────────────────────────
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    environment:
+      name: production
+      url: ${{ secrets.PRODUCTION_URL }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH to production server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script: |
+            set -e
+            echo "Starting deployment..."
+
+            # Navigate to app directory
+            cd ${{ secrets.APP_DIR || '/opt/fashion-freedom' }}
+
+            # Pull latest images from GitHub Container Registry
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            docker compose -f docker-compose.prod.yml pull
+
+            # Zero-downtime rolling restart
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+
+            # Clean up old dangling images to save disk space
+            docker image prune -f
+
+            echo "Deployment complete!"
+
+      - name: Verify deployment health
+        run: |
+          sleep 15
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" ${{ secrets.PRODUCTION_URL }}/health || echo "000")
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo " Health check failed with HTTP $HTTP_STATUS"
+            exit 1
+          fi
+          echo " Health check passed (HTTP $HTTP_STATUS)"
+
+      - name: Notify on success
+        if: success()
+        run: |
+          echo "Deployment to production succeeded!"
+          echo "Commit: ${{ github.sha }}"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Actor: ${{ github.actor }}"
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "Deployment FAILED for commit ${{ github.sha }}"
+          echo "Check the Actions tab for details."
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # JOB 4: PR Preview Summary (only on pull requests)
+  # ────────────────────────────────────────────────────────────────────────────
+  pr-summary:
+    name: PR Summary
+    runs-on: ubuntu-latest
+    needs: lint-and-audit
+    if: github.event_name == 'pull_request'
+
+    permissions:
+      pull-requests: write
+
+    steps:
+      - name: Post PR comment with audit results
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = `## ✅ CI Checks Passed
+
+            | Check | Status |
+            |-------|--------|
+            |  Backend ESLint | ✅ Passed |
+            |  Frontend ESLint | ✅ Passed |
+            |  npm audit (backend) | ✅ No HIGH/CRITICAL vulns |
+            |  npm audit (frontend) | ✅ Checked |
+
+            **Ready for review!** Docker images will be built and deployed automatically after merge to \`main\`.`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body
+            });

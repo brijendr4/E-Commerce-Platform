@@ -33,13 +33,24 @@ export async function getAdminStats(req, res, next) {
 
 /**
  * GET /api/admin/users
- * View all users in system
+ * View all users in system (paginated)
+ * Query params: ?page=1&limit=20
  */
 export async function getAdminUsers(req, res, next) {
   try {
-    // Return all users, sorting by newest first
-    const users = await User.find().sort({ createdAt: -1 })
-    res.json(users)
+    const page  = Math.max(1, parseInt(req.query.page)  || 1)
+    const limit = Math.min(100, parseInt(req.query.limit) || 20)
+    const skip  = (page - 1) * limit
+
+    const [users, total] = await Promise.all([
+      User.find().sort({ createdAt: -1 }).skip(skip).limit(limit),
+      User.countDocuments()
+    ])
+
+    res.json({
+      users,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) }
+    })
   } catch (err) {
     next(err)
   }
@@ -110,15 +121,28 @@ export async function updateUserRole(req, res, next) {
 
 /**
  * GET /api/admin/orders
- * View all orders in system populated with user info
+ * View all orders in system populated with user info (paginated)
+ * Query params: ?page=1&limit=20
  */
 export async function getAdminOrders(req, res, next) {
   try {
-    const orders = await Order.find()
-      .populate('user', 'name email')
-      .sort({ createdAt: -1 })
+    const page  = Math.max(1, parseInt(req.query.page)  || 1)
+    const limit = Math.min(100, parseInt(req.query.limit) || 20)
+    const skip  = (page - 1) * limit
 
-    res.json(orders)
+    const [orders, total] = await Promise.all([
+      Order.find()
+        .populate('user', 'name email')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      Order.countDocuments()
+    ])
+
+    res.json({
+      orders,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) }
+    })
   } catch (err) {
     next(err)
   }

@@ -1,6 +1,21 @@
 import jwt from 'jsonwebtoken'
+import crypto from 'crypto'
 import User from '../models/User.js'
 import { generateOtp, sendOtpEmail } from '../services/otpService.js'
+
+// Timing-safe OTP comparison to prevent timing-based OTP enumeration attacks
+function safeCompareOtp(stored, input) {
+  if (!stored || !input) return false
+  try {
+    // Pad both to same length to avoid length-based timing leaks
+    const a = Buffer.from(stored.toString().padEnd(20, '\x00'))
+    const b = Buffer.from(input.toString().trim().padEnd(20, '\x00'))
+    if (a.length !== b.length) return false
+    return crypto.timingSafeEqual(a, b)
+  } catch {
+    return false
+  }
+}
 
 function signToken(userId) {
   return jwt.sign(
@@ -117,7 +132,13 @@ export async function updateProfile(req, res, next) {
     }
 
     user.name = name.trim()
-    if (profilePic !== undefined) user.profilePic = profilePic
+    if (profilePic !== undefined) {
+      // Validate URL to prevent SSRF — only allow http(s) URLs
+      if (profilePic && !/^https?:\/\/.+/i.test(profilePic)) {
+        return res.status(400).json({ error: 'Profile picture must be a valid HTTP or HTTPS URL.' })
+      }
+      user.profilePic = profilePic
+    }
 
     await user.save()
     res.json({ message: 'Profile updated successfully.', user })
@@ -165,7 +186,7 @@ export async function resetPassword(req, res, next) {
     const user = await User.findOne({ email: email.toLowerCase().trim() })
     if (!user) return res.status(400).json({ error: 'Invalid OTP or email.' })
 
-    if (!user.passwordResetOtp || user.passwordResetOtp !== otp.trim()) {
+    if (!safeCompareOtp(user.passwordResetOtp, otp)) {
       return res.status(400).json({ error: 'Invalid OTP code.' })
     }
     if (user.passwordResetOtpExpires < new Date()) {
@@ -265,7 +286,7 @@ export async function verifyOtpAndChangePassword(req, res, next) {
     const isMatch = await user.comparePassword(currentPassword)
     if (!isMatch) return res.status(400).json({ error: 'Incorrect current password.' })
 
-    if (!user.passwordResetOtp || user.passwordResetOtp !== otp.trim()) {
+    if (!safeCompareOtp(user.passwordResetOtp, otp)) {
       return res.status(400).json({ error: 'Invalid OTP code.' })
     }
     if (user.passwordResetOtpExpires < new Date()) {

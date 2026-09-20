@@ -5,25 +5,32 @@ services:
   mongo:
     image: mongo:6.0
     container_name: ecommerce-mongo
-    ports:
-      - "27017:27017"
+    # Use internal Docker network only — do NOT expose 27017 to the host
+    expose:
+      - "27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+      MONGO_INITDB_DATABASE: ecommerce
     volumes:
       - mongo-data:/data/db
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')", "--quiet"]
       interval: 5s
       timeout: 5s
       retries: 5
-      start_period: 5s
+      start_period: 10s
     restart: unless-stopped
 
   redis:
     image: redis:7-alpine
     container_name: ecommerce-redis
-    ports:
-      - "6379:6379"
+    # Use internal Docker network only — do NOT expose 6379 to the host
+    expose:
+      - "6379"
+    command: redis-server --requirepass ${REDIS_PASSWORD}
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -34,12 +41,17 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: ecommerce-db-seed
-    command: npm run seed
+    command: node src/seed.js
+    user: node
     environment:
-      MONGODB_URI: mongodb://mongo:27017/ecommerce
-      REDIS_URL: redis://redis:6379
+      MONGODB_URI: mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongo:27017/ecommerce?authSource=admin
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      JWT_SECRET: ${JWT_SECRET}
+      NODE_ENV: development
     depends_on:
       mongo:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
   backend:
@@ -51,9 +63,10 @@ services:
       - "5000:5000"
     environment:
       PORT: 5000
-      MONGODB_URI: mongodb://mongo:27017/ecommerce
-      REDIS_URL: redis://redis:6379
+      MONGODB_URI: mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongo:27017/ecommerce?authSource=admin
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
       NODE_ENV: development
       FRONTEND_URL: http://localhost:5173
     depends_on:
@@ -61,6 +74,12 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
     restart: unless-stopped
 
   frontend:
@@ -69,11 +88,12 @@ services:
       dockerfile: Dockerfile
     container_name: ecommerce-frontend
     ports:
-      - "5173:5173"
+      - "5173:80"
     environment:
       VITE_API_URL: http://localhost:5000/api
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:

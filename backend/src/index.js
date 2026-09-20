@@ -4,6 +4,7 @@ import cors from 'cors'
 import morgan from 'morgan'
 import dotenv from 'dotenv'
 import helmet from 'helmet'
+import rateLimit from 'express-rate-limit'
 
 import authRoutes from './routes/auth.js'
 import productRoutes from './routes/products.js'
@@ -47,6 +48,18 @@ app.use(cors({
 // ─── General Middleware ───────────────────────────────────────────────────────
 app.use(express.json({ limit: '10kb' })) // Limit body size to prevent large payload attacks
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'))
+
+// ─── General API Rate Limiter ─────────────────────────────────────────────────
+// Broad limiter applied to all /api/* routes to prevent scraping and DoS.
+// Auth routes apply their own stricter limiter (30 req/15min) on top of this.
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 200,                  // 200 requests per window per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Please slow down and try again later.' }
+})
+app.use('/api/', apiLimiter)
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes)

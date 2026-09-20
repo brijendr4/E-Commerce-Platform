@@ -5,20 +5,21 @@ import toast from 'react-hot-toast'
 import { authAPI } from '../lib/api'
 import {
   FaUser, FaLock, FaEnvelope, FaArrowRight, FaGoogle,
-  FaFacebook, FaKey, FaTimes, FaCheckCircle
+  FaFacebook, FaKey, FaTimes, FaCheckCircle, FaEye, FaEyeSlash
 } from 'react-icons/fa'
 
-// ─── Simulated social profiles for demo ──────────────────────────────────────
-const MOCK_GOOGLE_USERS = [
+// ─── Simulated social profiles for demo (DEV ONLY) ──────────────────────────
+// These are NEVER shown in production builds (import.meta.env.DEV === false)
+const MOCK_GOOGLE_USERS = import.meta.env.DEV ? [
   { name: 'Arjun Mehta', email: 'arjun.mehta@gmail.com', socialId: 'g_001', profilePic: 'https://api.dicebear.com/7.x/avataaars/svg?seed=arjun' },
   { name: 'Priya Sharma', email: 'priya.sharma@gmail.com', socialId: 'g_002', profilePic: 'https://api.dicebear.com/7.x/avataaars/svg?seed=priya' },
   { name: 'Rohan Gupta', email: 'rohan.gupta@gmail.com', socialId: 'g_003', profilePic: 'https://api.dicebear.com/7.x/avataaars/svg?seed=rohan' }
-]
-const MOCK_FB_USERS = [
+] : []
+const MOCK_FB_USERS = import.meta.env.DEV ? [
   { name: 'Sneha Patel', email: 'sneha.patel@facebook.com', socialId: 'fb_001', profilePic: 'https://api.dicebear.com/7.x/avataaars/svg?seed=sneha' },
   { name: 'Kabir Singh', email: 'kabir.singh@facebook.com', socialId: 'fb_002', profilePic: 'https://api.dicebear.com/7.x/avataaars/svg?seed=kabir' },
   { name: 'Anika Joshi', email: 'anika.joshi@facebook.com', socialId: 'fb_003', profilePic: 'https://api.dicebear.com/7.x/avataaars/svg?seed=anika' }
-]
+] : []
 
 export default function Login() {
   const { login, socialLogin } = useAuth()
@@ -29,6 +30,7 @@ export default function Login() {
   // Login form
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -141,16 +143,18 @@ export default function Login() {
             </div>
           )}
 
-          {/* Social Login Buttons */}
+          {/* Social Login Buttons — dev mock or production placeholder */}
           <div className="grid grid-cols-2 gap-3 mb-6">
             <button
-              onClick={() => setSocialPopup('google')}
+              onClick={() => import.meta.env.DEV ? setSocialPopup('google') : toast('Google OAuth coming soon!', { icon: '🔜' })}
+              title={import.meta.env.DEV ? 'Demo: Select a Google account' : 'Real Google OAuth integration coming soon'}
               className="btn btn-primary py-3 text-xs font-black tracking-wider flex items-center justify-center gap-2 border border-white/50 hover:border-red-200 hover:text-red-600 transition-colors cursor-pointer"
             >
               <FaGoogle className="text-sm text-[#DB4437]" /> Google
             </button>
             <button
-              onClick={() => setSocialPopup('facebook')}
+              onClick={() => import.meta.env.DEV ? setSocialPopup('facebook') : toast('Facebook OAuth coming soon!', { icon: '🔜' })}
+              title={import.meta.env.DEV ? 'Demo: Select a Facebook account' : 'Real Facebook OAuth integration coming soon'}
               className="btn btn-primary py-3 text-xs font-black tracking-wider flex items-center justify-center gap-2 border border-white/50 hover:border-blue-200 hover:text-blue-600 transition-colors cursor-pointer"
             >
               <FaFacebook className="text-sm text-[#1877F2]" /> Facebook
@@ -202,13 +206,21 @@ export default function Login() {
                 <input
                   id="login-password"
                   required
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
-                  className="form-control pl-10"
+                  className="form-control pl-10 pr-10"
                   placeholder="••••••••"
                   autoComplete="current-password"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(v => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 transition-colors bg-transparent border-none cursor-pointer"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <FaEyeSlash className="text-xs" /> : <FaEye className="text-xs" />}
+                </button>
               </div>
             </div>
 
@@ -229,8 +241,8 @@ export default function Login() {
         </div>
       </div>
 
-      {/* ─── Social Login Popup ────────────────────────────────────────── */}
-      {socialPopup && (
+      {/* ─── Social Login Popup (DEV ONLY) ─────────────────────────────────── */}
+      {import.meta.env.DEV && socialPopup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/50 backdrop-blur-sm p-4">
           <div className="shadow-soft bg-primary border border-white/50 p-6 rounded-3xl w-full max-w-sm mx-auto animate-fade-in">
             <div className="flex justify-between items-center mb-5">
@@ -348,9 +360,11 @@ export default function Login() {
                     id="fp-otp"
                     required
                     type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]{6}"
                     maxLength={6}
                     value={fpOtp}
-                    onChange={e => setFpOtp(e.target.value)}
+                    onChange={e => setFpOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     className="form-control text-center text-lg tracking-[6px] font-extrabold"
                     placeholder="000000"
                   />
