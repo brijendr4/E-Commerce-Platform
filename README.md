@@ -1,4 +1,4 @@
-# Fashion & Freedom — Premium Menswear E-Commerce Platform
+# Fashion & Freedom - Premium Menswear D2C E-Commerce Platform
 
 A complete, full-stack, neumorphic-styled e-commerce web application featuring user authentication, profile customisation, product browsing with category filtering, a shopping cart, a persistent wishlist, and an order management system. Built with modern web technologies: React, Express, MongoDB, and Redis.
 
